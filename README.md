@@ -19,6 +19,23 @@ The project is based on OpenGL, SDL2, ImGui, libmpv, & all these other great [li
 
 ![OpenFunscripter Screenshot](./OpenFunscripter.jpg)
 
+### This fork's additions
+
+Beyond upstream, this fork carries two additive changes, kept as separate commits so
+rebasing onto upstream stays mechanical:
+
+- **Lua chapter API** — `ofs.Chapters/AddChapter/RemoveChapter/ClearChapters`, plus
+  bookmarks, so extensions can put chapters on the timeline.
+- **WebSocket control plane** — binds `127.0.0.1` by default (with an explicit
+  *Expose on network* opt-in), acknowledges commands carrying an `id` via a
+  `command_result` event, and adds `get_state`, `seek_relative`, `open_file`,
+  `save_project` and `set_chapters`.
+
+Both exist so an external tool can drive OFS instead of duplicating it: generate a script
+into the timeline as one undoable commit, pre-fill and read back the chapter lane, and let a
+scoring tool seek the editor to a model's worst segments. Nothing here depends on the
+particular tool — the chapter API and the command set are generic.
+
 ### How to build ( for people who want to contribute or fork )
 1. Clone the repository
 2. `cd "OpenFunscripter"`
