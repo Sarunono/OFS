@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cstring>
+#include <cstdint>
 #include <vector>
 #include "rapidcsv.h"
 

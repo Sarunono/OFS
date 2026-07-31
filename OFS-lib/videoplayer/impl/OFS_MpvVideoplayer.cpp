@@ -181,6 +181,14 @@ bool OFS_Videoplayer::Init(bool hwAccel) noexcept
         LOGF_WARN("Failed to set mpv: config-dir=%s", confPath.c_str());
     }
 
+    // Video is rendered into our own framebuffer via the render API.
+    // Without pinning the vo, mpv is free to pick a windowed one (gpu-next),
+    // which spawns a separate OS window per player instead of embedding.
+    error = mpv_set_option_string(CTX->mpv, "vo", "libmpv");
+    if(error != 0) {
+        LOG_WARN("Failed to set mpv: vo=libmpv");
+    }
+
     if(mpv_initialize(CTX->mpv) != 0) {
         return false;
     }
