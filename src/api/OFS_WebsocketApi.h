@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 #include <memory>
+#include <string>
 #include <vector>
 #include <atomic>
 
@@ -80,6 +81,12 @@ class OFS_WebsocketApi
     void Update() noexcept;
     void ShowWindow(bool* open) noexcept;
     void Shutdown() noexcept;
+
+    // Acknowledge a command that carried an "id". Goes through the same
+    // serialization queue as every other event, so only one thread ever writes
+    // to a connection.
+    void PushCommandResult(const std::string& id, const std::string& name,
+        bool ok, const std::string& error) noexcept;
 
     int ClientsConnected() const noexcept;
 };

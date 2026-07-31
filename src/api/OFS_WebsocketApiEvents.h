@@ -20,6 +20,26 @@ void to_json(nlohmann::json& j, const class WsMediaChange& p);
 void to_json(nlohmann::json& j, const class WsPlaybackSpeedChange& p);
 void to_json(nlohmann::json& j, const class WsFunscriptChange& p);
 void to_json(nlohmann::json& j, const class WsFunscriptRemove& p);
+void to_json(nlohmann::json& j, const class WsCommandResult& p);
+
+// Acknowledgement for a command that carried an "id". Necessary because OFS only
+// emits a state-change event when the state actually changes -- telling an
+// already-paused player to pause produces silence, which is indistinguishable
+// from a dropped command.
+class WsCommandResult : public OFS_Event<WsCommandResult>, public ToJsonInterface
+{
+    public:
+    std::string id;
+    std::string name;
+    bool ok = true;
+    std::string error;
+
+    WsCommandResult(const std::string& id, const std::string& name,
+        bool ok, const std::string& error) noexcept
+        : id(id), name(name), ok(ok), error(error) {}
+
+    void Serialize(nlohmann::json& json) noexcept override { to_json(json, *this); }
+};
 
 class WsMediaChange : public OFS_Event<WsMediaChange>, public ToJsonInterface
 {

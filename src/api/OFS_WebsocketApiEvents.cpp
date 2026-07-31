@@ -54,3 +54,14 @@ void to_json(nlohmann::json& j, const WsFunscriptRemove& p)
     initializeEvent(j, "funscript_remove");
     j["data"] = { {"name", p.name } };
 }
+
+void to_json(nlohmann::json& j, const WsCommandResult& p)
+{
+    initializeEvent(j, "command_result");
+    j["data"] = {
+        { "id", p.id },
+        { "name", p.name },
+        { "ok", p.ok },
+        { "error", p.error },
+    };
+}

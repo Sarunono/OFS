@@ -323,7 +323,13 @@ bool OFS_WebsocketApi::StartServer() noexcept
 	if(CTX->web) return true;
 	auto& state = WebsocketApiState::State(stateHandle);
 
-	const char* options[] = {"listening_ports", state.port.c_str(), "num_threads", "4", NULL, NULL};
+	// Bind loopback unless explicitly told otherwise. The API can open and save
+	// files, so an unauthenticated listener on every interface would let anyone
+	// routable to this machine drive the editor.
+	std::string listenSpec = state.exposeOnNetwork
+		? state.port
+		: ("127.0.0.1:" + state.port);
+	const char* options[] = {"listening_ports", listenSpec.c_str(), "num_threads", "4", NULL, NULL};
 
     /* Start the server using the advanced API. */
 	struct mg_callbacks callbacks = {0};
@@ -392,6 +398,16 @@ void OFS_WebsocketApi::Update() noexcept
 	OFS_WebsocketClient::CommandBuffer.ProcessCommands();
 }
 
+void OFS_WebsocketApi::PushCommandResult(const std::string& id, const std::string& name,
+	bool ok, const std::string& error) noexcept
+{
+	if(ClientsConnected() <= 0) return;
+	// Queued like any other event: the serialization thread is the only writer,
+	// so this never races with an in-flight broadcast. It goes out on the next
+	// Update(), since ProcessCommands() runs after this tick's flush.
+	eventSerializationCtx->Push<WsCommandResult>(id, name, ok, error);
+}
+
 void OFS_WebsocketApi::Shutdown() noexcept
 {
 	eventSerializationCtx->Shutdown();
@@ -419,11 +435,24 @@ void OFS_WebsocketApi::ShowWindow(bool* open) noexcept
 	{
 		mg_server_port ports;
 		mg_get_server_ports(CTX->web, 1, &ports);
-		
-		ImGui::TextColored(ImVec4(0.f, 1.f, 0.f, 1.f), "ws://0.0.0.0:%d%s", ports.port, WS_URL);
+
+		ImGui::TextColored(ImVec4(0.f, 1.f, 0.f, 1.f), "ws://%s:%d%s",
+			state.exposeOnNetwork ? "0.0.0.0" : "127.0.0.1", ports.port, WS_URL);
 		auto clientCount = ClientsConnected();
 		ImGui::Text("%s: %d", TR(CLIENT_COUNT), clientCount);
 	}
+
+	if(ImGui::Checkbox("Expose on network", &state.exposeOnNetwork))
+	{
+		if(serverRunning)
+		{
+			// rebind with the new interface
+			StopServer();
+			StartServer();
+		}
+	}
+	ImGui::TextDisabled("Unauthenticated, and it can open/save files.\n"
+		"Leave off unless you trust every host on the network.");
 
 	auto textChanged = ImGui::InputText(TR(PORT), &state.port, ImGuiInputTextFlags_CallbackCharFilter | ImGuiInputTextFlags_CharsDecimal,
 		[](ImGuiInputTextCallbackData* data)

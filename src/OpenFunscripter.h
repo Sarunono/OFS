@@ -100,7 +100,6 @@ private:
     void isolateAction() noexcept;
     void repeatLastStroke() noexcept;
 
-    void saveProject() noexcept;
     void quickExport() noexcept;
     void quickExport2() noexcept;
     void pickDifferentMedia() noexcept;
@@ -114,7 +113,6 @@ private:
 
     void saveActiveScriptAs();
 
-    void openFile(const std::string& file) noexcept;
     void initProject() noexcept;
     bool closeProject(bool closeWithUnsavedChanges) noexcept;
 
@@ -136,6 +134,11 @@ public:
     uint8_t Status = OFS_Status::OFS_AutoBackup;
 
     ~OpenFunscripter() noexcept;
+
+    // Public because they are app-level entry points driven from outside the UI:
+    // the command line (argv[1]) and the websocket API both open and save.
+    void openFile(const std::string& file) noexcept;
+    void saveProject() noexcept;
 
     ScriptTimeline scriptTimeline;
     OFS_VideoplayerControls playerControls;
