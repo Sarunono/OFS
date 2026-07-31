@@ -33,6 +33,7 @@ set(OPEN_FUNSCRIPTER_SOURCES
   "lua/api/OFS_LuaImGuiAPI.cpp"
   "lua/api/OFS_LuaScriptAPI.cpp"
   "lua/api/OFS_LuaProcessAPI.cpp"
+  "lua/api/OFS_LuaChapterAPI.cpp"
 )
 
 if(WIN32)

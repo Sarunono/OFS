@@ -47,6 +47,12 @@ struct ChapterState
 
     bool SetChapterSize(Chapter& chapter, float toTime) noexcept;
     Chapter* AddChapter(float time, float duration) noexcept;
+    // Insert a chapter spanning an explicit [startTime, endTime] range, keeping
+    // the vector sorted by startTime. Returns nullptr if the range is invalid or
+    // overlaps an existing chapter. AddChapter() above derives its end from a
+    // percentage of the video duration, which suits the "add here" UI button but
+    // not callers that already know both ends (importers, scripting APIs).
+    Chapter* AddChapterRange(float startTime, float endTime) noexcept;
     Bookmark* AddBookmark(float time) noexcept;
 };
 

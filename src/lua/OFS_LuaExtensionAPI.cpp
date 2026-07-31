@@ -40,6 +40,7 @@ OFS_ExtensionAPI::OFS_ExtensionAPI(sol::usertype<class OFS_ExtensionAPI>& ofs) n
     guiAPI = std::make_unique<OFS_ImGuiAPI>(ofs);
 	procAPI = std::make_unique<OFS_ProcessAPI>(ofs);
     scriptAPI = std::make_unique<OFS_ScriptAPI>(ofs);
+    chapterAPI = std::make_unique<OFS_ChapterAPI>(ofs);
     playerAPI = std::make_unique<OFS_PlayerAPI>(L);
 
 	L.set_function("print", LuaPrint);

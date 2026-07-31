@@ -115,6 +115,43 @@ Chapter* ChapterState::AddChapter(float time, float duration) noexcept
     return nullptr;
 }
 
+Chapter* ChapterState::AddChapterRange(float startTime, float endTime) noexcept
+{
+    if(!(endTime > startTime))
+    {
+        return nullptr;
+    }
+
+    // Touching is not overlapping. Importers routinely produce contiguous spans
+    // where chapter i ends exactly where chapter i+1 begins; the inclusive test
+    // used by the drag-to-resize UI would reject every other one of those.
+    // Strict inequality here keeps that UI behaviour unchanged elsewhere.
+    for(auto& chapter : chapters)
+    {
+        if(startTime < chapter.endTime && chapter.startTime < endTime)
+        {
+            return nullptr;
+        }
+    }
+
+    Chapter newChapter = {0};
+    newChapter.startTime = startTime;
+    newChapter.endTime = endTime;
+    newChapter.color = Util::RandomColor(0.65f, 0.70f);
+
+    for(int i=0, size=chapters.size(); i < size; i += 1)
+    {
+        if(chapters[i].startTime >= newChapter.endTime)
+        {
+            auto it = chapters.insert(chapters.begin() + i, std::move(newChapter));
+            return &(*it);
+        }
+    }
+
+    auto& c = chapters.emplace_back(std::move(newChapter));
+    return &c;
+}
+
 Bookmark* ChapterState::AddBookmark(float time) noexcept
 {
     for(auto& bookmark : bookmarks)

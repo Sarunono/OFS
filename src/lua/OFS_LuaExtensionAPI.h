@@ -5,6 +5,7 @@
 #include "api/OFS_LuaScriptAPI.h"
 #include "api/OFS_LuaPlayerAPI.h"
 #include "api/OFS_LuaProcessAPI.h"
+#include "api/OFS_LuaChapterAPI.h"
 
 #include <memory>
 
@@ -19,6 +20,7 @@ class OFS_ExtensionAPI
     std::unique_ptr<OFS_ProcessAPI> procAPI;
     std::unique_ptr<OFS_PlayerAPI> playerAPI;
     std::unique_ptr<OFS_ScriptAPI> scriptAPI;
+    std::unique_ptr<OFS_ChapterAPI> chapterAPI;
 
     OFS_ExtensionAPI(sol::usertype<class OFS_ExtensionAPI>& ofs) noexcept;
     ~OFS_ExtensionAPI() noexcept;
