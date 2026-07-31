@@ -29,6 +29,40 @@ OFS_ScriptAPI::OFS_ScriptAPI(sol::usertype<class OFS_ExtensionAPI>& ofs) noexcep
     ofs["Script"] = OFS_ScriptAPI::Script;
     ofs["Clipboard"] = OFS_ScriptAPI::Clipboard;
     ofs["Undo"] = OFS_ScriptAPI::Undo;
+    ofs["AddFunscript"] = OFS_ScriptAPI::AddFunscript;
+}
+
+// Load an additional funscript into the open project, as its own track.
+// Useful for comparing two versions side by side (a generated candidate against
+// the script being edited) without leaving the project.
+bool OFS_ScriptAPI::AddFunscript(const char* path) noexcept
+{
+    FUN_ASSERT(Util::InMainThread(), "Not in main thread.");
+    if(!path) return false;
+
+    auto app = OpenFunscripter::ptr;
+    if(!app->LoadedProject || !app->LoadedProject->IsValid())
+    {
+        return false;
+    }
+
+    // Guard before delegating: OFS_Project::AddFunscript appends an *empty*
+    // script when the file is missing or unparseable, so an unchecked call
+    // leaves a junk track behind on every typo.
+    if(!Util::FileExists(path))
+    {
+        return false;
+    }
+    bool parsed = false;
+    auto json = Util::ParseJson(Util::ReadFileString(path), &parsed);
+    if(!parsed || !json.is_object())
+    {
+        return false;
+    }
+
+    // The UI enumerates LoadedFunscripts() every frame, so appending is enough;
+    // no add-event exists and none is needed.
+    return app->LoadedProject->AddFunscript(path);
 }
 
 lua_Integer OFS_ScriptAPI::ActiveIdx() noexcept

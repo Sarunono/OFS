@@ -110,6 +110,7 @@ class OFS_ScriptAPI
         static bool Undo() noexcept;
 
         static std::unique_ptr<LuaFunscript> Clipboard() noexcept;
+        static bool AddFunscript(const char* path) noexcept;
     public:
         OFS_ScriptAPI(sol::usertype<class OFS_ExtensionAPI>& ofs) noexcept;
 };
