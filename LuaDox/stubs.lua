@@ -59,6 +59,88 @@ function ofs.Clipboard() end
 --   This function can only undo modifications done by a Lua extension.
 function ofs.Undo() end
 
+--- Load an additional funscript into the project as its own track
+--
+-- Useful for comparing two versions side by side, e.g. a generated candidate
+-- against the script being edited, without leaving the project.
+-- @tparam string path Path to an existing funscript
+-- @treturn bool added
+-- @note Note
+--   Addition of this fork. Not available in upstream OFS.
+-- @note Note
+--   Returns false and adds nothing when no project is loaded, when the file
+--   does not exist, or when it is not a funscript.
+-- @example
+--   if ofs.AddFunscript("/tmp/candidate.funscript") then
+--     print("loaded as track", ofs.ScriptCount())
+--   end
+function ofs.AddFunscript(path) end
+
+
+--- Chapters & bookmarks.
+-- @note Note
+--   Addition of this fork. Not available in upstream OFS.
+-- @note Note
+--   These operate on the chapters of the currently loaded project. With no
+--   project loaded they change nothing and return false, because the project
+--   state they would write to is discarded the next time a project is opened.
+-- @note Note
+--   Times are in seconds. Indices are 1-based and match the order returned by
+--   `ofs.Chapters()` / `ofs.Bookmarks()`.
+-- @section chapters
+
+--- Get the chapters of the current project
+--
+-- Each entry is a plain table with `startTime`, `endTime` and `name`.
+-- Ordered by start time.
+-- @treturn table[] chapters
+-- @example
+--   for idx, chapter in ipairs(ofs.Chapters()) do
+--     print(idx, chapter.name, chapter.startTime, chapter.endTime)
+--   end
+function ofs.Chapters() end
+
+--- Add a chapter
+-- @tparam number startTime Time in seconds
+-- @tparam number endTime Time in seconds
+-- @tparam string name
+-- @tparam string|nil color Hex colour, `"#RRGGBB"`. Random when omitted.
+-- @treturn bool added
+-- @note Note
+--   Returns false when `endTime` is not greater than `startTime`, or when the
+--   span overlaps an existing chapter. Touching is not overlapping: a chapter
+--   may start exactly where the previous one ends.
+-- @example
+--   ofs.AddChapter(0.0, 30.0, "intro", "#4488cc")
+function ofs.AddChapter(startTime, endTime, name, color) end
+
+--- Remove a chapter by index
+-- @tparam number index 1-based, as returned by `ofs.Chapters()`
+-- @treturn bool removed
+function ofs.RemoveChapter(index) end
+
+--- Remove every chapter
+-- @treturn nil
+function ofs.ClearChapters() end
+
+--- Get the bookmarks of the current project
+--
+-- Each entry is a plain table with `time` and `name`.
+-- @treturn table[] bookmarks
+function ofs.Bookmarks() end
+
+--- Add a bookmark
+-- @tparam number time Time in seconds
+-- @tparam string name
+-- @treturn bool added
+-- @note Note
+--   Returns false when an existing bookmark is within one second of `time`.
+function ofs.AddBookmark(time, name) end
+
+--- Remove every bookmark
+-- @treturn nil
+function ofs.ClearBookmarks() end
+
 
 --- GUI.
 -- @note Important
@@ -260,8 +342,21 @@ playbackSpeed = 1.0
 -- @class Funscript
 
 --- Array of actions
+--
+-- Indexable and iterable with `ipairs`, but it is a bound C++ container rather
+-- than a Lua table: it grows and shrinks only through `actions:add()`,
+-- `actions:clear()` and `Funscript:markForRemoval()` / `Funscript:removeMarked()`.
+-- `table.insert` and `table.remove` do not work on it.
+--
+-- Editing `at`, `pos` or `selected` on an entry is fine, and takes effect on
+-- `Funscript:commit()`.
 -- @meta read/write
 -- @type Action[]
+-- @example
+--   local script = ofs.Script(ofs.ActiveIdx())
+--   script.actions:add(Action.new(12.5, 80, false))
+--   script.actions[1].pos = 0
+--   script:commit()
 actions = {}
 
 --- Default save path
