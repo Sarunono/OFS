@@ -171,9 +171,16 @@ bool WsOpenFileCmd::Run() noexcept
         return false;
     }
     auto app = OpenFunscripter::ptr;
-    // Note: with unsaved edits this raises the usual confirmation dialog, so the
-    // load completes only once the user answers. Deliberate -- a remote command
-    // must not discard local work.
+    // With unsaved edits openFile() raises the usual confirmation dialog and
+    // returns immediately, so the load finishes long after Run() does -- and not
+    // at all if the user cancels. Acking that as ok=true would be a lie, and
+    // open_file is exactly the command a client sequences other work behind.
+    // Refuse instead, and let the client tell the user to resolve it.
+    if(app->LoadedProject && app->LoadedProject->HasUnsavedEdits())
+    {
+        error = "project has unsaved edits";
+        return false;
+    }
     app->openFile(path);
     return true;
 }
@@ -192,6 +199,17 @@ bool WsSaveProjectCmd::Run() noexcept
 
 bool WsSetChaptersCmd::Run() noexcept
 {
+    auto app = OpenFunscripter::ptr;
+    // Chapters live in project state. OFS starts with an invalid placeholder
+    // project, and writing chapters into that slot appears to work right up
+    // until openFile() calls ClearProjectAll() and wipes them -- after the
+    // client was told ok=true.
+    if(!app->LoadedProject || !app->LoadedProject->IsValid())
+    {
+        error = "no project loaded";
+        return false;
+    }
+
     // Atomic: validate the whole request before touching anything. Clearing
     // first and inserting as we go would let a single bad span destroy the
     // user's existing chapters and leave a partial timeline behind -- while
@@ -200,23 +218,30 @@ bool WsSetChaptersCmd::Run() noexcept
     std::sort(sorted.begin(), sorted.end(),
         [](const Chapter& a, const Chapter& b) noexcept { return a.startTime < b.startTime; });
 
+    // Name the offending chapters instead of numbering them. The sort above
+    // reorders the request, so a positional index would point into our ordering
+    // rather than the array the client sent; the name (or failing that, the
+    // start time) identifies it either way.
+    auto describe = [](const Chapter& chapter) noexcept -> std::string {
+        if(!chapter.name.empty()) return "chapter \"" + chapter.name + "\"";
+        return std::string("chapter at ") + Util::Format("%.3fs", chapter.startTime);
+    };
+
     for(int i = 0, size = sorted.size(); i < size; i += 1)
     {
         if(!(sorted[i].endTime > sorted[i].startTime))
         {
-            error = "chapter " + std::to_string(i + 1) + " has a non-positive duration";
+            error = describe(sorted[i]) + " has a non-positive duration";
             return false;
         }
         // Touching is allowed (contiguous spans); real overlap is not.
         if(i > 0 && sorted[i].startTime < sorted[i - 1].endTime)
         {
-            error = "chapters " + std::to_string(i) + " and " + std::to_string(i + 1)
-                  + " overlap";
+            error = describe(sorted[i - 1]) + " and " + describe(sorted[i]) + " overlap";
             return false;
         }
     }
 
-    auto app = OpenFunscripter::ptr;
     auto& state = app->chapterMgr->State();
 
     state.chapters.clear();

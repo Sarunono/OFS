@@ -37,6 +37,17 @@ inline static void NotifyChanged() noexcept
     EV::Enqueue<ChapterStateChanged>();
 }
 
+// OFS starts with an invalid placeholder project, and the state slot above
+// exists regardless. Writing to it looks like it works -- right up until
+// openFile() calls ClearProjectAll() and drops everything -- so mutations
+// refuse rather than report a change that won't survive. Readers are fine:
+// no project simply means no chapters.
+inline static bool ProjectLoaded() noexcept
+{
+    auto app = OpenFunscripter::ptr;
+    return app->LoadedProject && app->LoadedProject->IsValid();
+}
+
 inline static ImColor ParseColor(const std::string& hex, ImColor fallback) noexcept
 {
     const char* s = hex.c_str();
@@ -73,6 +84,7 @@ bool OFS_ChapterAPI::AddChapter(lua_Number startTime, lua_Number endTime,
     const char* name, sol::optional<std::string> color) noexcept
 {
     FUN_ASSERT(Util::InMainThread(), "Not in main thread.");
+    if(!ProjectLoaded()) return false;
     auto& state = State();
 
     auto chapter = state.AddChapterRange((float)startTime, (float)endTime);
@@ -95,6 +107,7 @@ bool OFS_ChapterAPI::AddChapter(lua_Number startTime, lua_Number endTime,
 bool OFS_ChapterAPI::RemoveChapter(lua_Integer index) noexcept
 {
     FUN_ASSERT(Util::InMainThread(), "Not in main thread.");
+    if(!ProjectLoaded()) return false;
     auto& state = State();
 
     index -= 1; // Lua is 1-based
@@ -111,6 +124,7 @@ bool OFS_ChapterAPI::RemoveChapter(lua_Integer index) noexcept
 void OFS_ChapterAPI::ClearChapters() noexcept
 {
     FUN_ASSERT(Util::InMainThread(), "Not in main thread.");
+    if(!ProjectLoaded()) return;
     auto& state = State();
     if(state.chapters.empty()) return;
     state.chapters.clear();
@@ -138,6 +152,7 @@ sol::table OFS_ChapterAPI::Bookmarks(sol::this_state L) noexcept
 bool OFS_ChapterAPI::AddBookmark(lua_Number time, const char* name) noexcept
 {
     FUN_ASSERT(Util::InMainThread(), "Not in main thread.");
+    if(!ProjectLoaded()) return false;
     auto& state = State();
 
     auto bookmark = state.AddBookmark((float)time);
@@ -155,6 +170,7 @@ bool OFS_ChapterAPI::AddBookmark(lua_Number time, const char* name) noexcept
 void OFS_ChapterAPI::ClearBookmarks() noexcept
 {
     FUN_ASSERT(Util::InMainThread(), "Not in main thread.");
+    if(!ProjectLoaded()) return;
     auto& state = State();
     if(state.bookmarks.empty()) return;
     state.bookmarks.clear();
