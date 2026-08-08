@@ -106,9 +106,15 @@ bool WsCommandBuffer::AddCmd(const nlohmann::json& jsonCmd) noexcept
 
 void WsCommandBuffer::ProcessCommands() noexcept
 {
-    if(commands.empty()) return;
+    // Take the queue and release the lock before running anything. Commands do
+    // real work now -- open_file parses a script, save_project writes to disk --
+    // and commandLock is a spinlock every civetweb worker takes in AddCmd().
+    std::vector<std::unique_ptr<WsCmd>> pending;
     SDL_AtomicLock(&commandLock);
-    for(auto& cmd : commands)
+    pending.swap(commands);
+    SDL_AtomicUnlock(&commandLock);
+
+    for(auto& cmd : pending)
     {
         bool ok = cmd->Run();
         if(!cmd->id.empty())
@@ -120,8 +126,6 @@ void WsCommandBuffer::ProcessCommands() noexcept
             }
         }
     }
-    commands.clear();
-    SDL_AtomicUnlock(&commandLock);
 }
 
 bool WsPlayChangeCmd::Run() noexcept

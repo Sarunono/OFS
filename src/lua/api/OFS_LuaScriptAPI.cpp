@@ -1,5 +1,7 @@
 #include "OFS_LuaScriptAPI.h"
 #include "OpenFunscripter.h"
+#include "api/OFS_WebsocketApiEvents.h"
+#include "OFS_EventSystem.h"
 
 OFS_ScriptAPI::OFS_ScriptAPI(sol::usertype<class OFS_ExtensionAPI>& ofs) noexcept
 {
@@ -48,7 +50,10 @@ bool OFS_ScriptAPI::AddFunscript(const char* path) noexcept
 
     // Guard before delegating: OFS_Project::AddFunscript appends an *empty*
     // script when the file is missing or unparseable, so an unchecked call
-    // leaves a junk track behind on every typo.
+    // leaves a junk track behind on every typo. That fallback is deliberate
+    // there -- "File -> Add new" and ImportFromMedia create tracks for paths
+    // that don't exist yet -- so the check belongs here, at the call site that
+    // only ever wants an existing script.
     if(!Util::FileExists(path))
     {
         return false;
@@ -59,10 +64,26 @@ bool OFS_ScriptAPI::AddFunscript(const char* path) noexcept
     {
         return false;
     }
+    // Being valid JSON isn't enough -- any object would slip through and still
+    // land an empty track. Require something Funscript::Deserialize can read:
+    // "actions" (1.0), "channels" (2.0) or "axes" (1.1).
+    bool looksLikeFunscript = (json.contains("actions") && json["actions"].is_array())
+                           || (json.contains("channels") && json["channels"].is_object())
+                           || (json.contains("axes") && json["axes"].is_array());
+    if(!looksLikeFunscript)
+    {
+        return false;
+    }
 
-    // The UI enumerates LoadedFunscripts() every frame, so appending is enough;
-    // no add-event exists and none is needed.
-    return app->LoadedProject->AddFunscript(path);
+    // The UI enumerates LoadedFunscripts() every frame, so appending is enough
+    // for it. Websocket clients are event-driven though, and no add-event
+    // exists, so re-broadcast the project to keep them in sync.
+    if(!app->LoadedProject->AddFunscript(path))
+    {
+        return false;
+    }
+    EV::Queue().directDispatch(WsProjectChange::EventType, EV::Make<WsProjectChange>());
+    return true;
 }
 
 lua_Integer OFS_ScriptAPI::ActiveIdx() noexcept
